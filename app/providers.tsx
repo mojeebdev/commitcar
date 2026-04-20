@@ -1,20 +1,16 @@
 'use client';
 
-import { WagmiProvider, createConfig, http } from 'wagmi';
+import '@rainbow-me/rainbowkit/styles.css';
+import { RainbowKitProvider, getDefaultConfig, darkTheme } from '@rainbow-me/rainbowkit';
+import { WagmiProvider } from 'wagmi';
 import { base } from 'wagmi/chains';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { coinbaseWallet, injected } from 'wagmi/connectors';
 import { useState } from 'react';
 
-const wagmiConfig = createConfig({
+const wagmiConfig = getDefaultConfig({
+  appName: 'CommitCar',
+  projectId: process.env.NEXT_PUBLIC_WC_PROJECT_ID || 'commitcar-dev',
   chains: [base],
-  connectors: [
-    coinbaseWallet({ appName: 'CommitCar', preference: 'smartWalletOnly' }),
-    injected(),
-  ],
-  transports: {
-    [base.id]: http(),
-  },
   ssr: true,
 });
 
@@ -22,7 +18,20 @@ export function Providers({ children }: { children: React.ReactNode }) {
   const [qc] = useState(() => new QueryClient());
   return (
     <WagmiProvider config={wagmiConfig}>
-      <QueryClientProvider client={qc}>{children}</QueryClientProvider>
+      <QueryClientProvider client={qc}>
+        <RainbowKitProvider
+          theme={darkTheme({
+            accentColor: '#F5A623',
+            accentColorForeground: '#0a0a0f',
+            borderRadius: 'medium',
+            fontStack: 'system',
+            overlayBlur: 'small',
+          })}
+          modalSize="compact"
+        >
+          {children}
+        </RainbowKitProvider>
+      </QueryClientProvider>
     </WagmiProvider>
   );
 }
