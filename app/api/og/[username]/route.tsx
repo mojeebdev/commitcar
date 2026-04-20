@@ -1,10 +1,11 @@
-import { ImageResponse } from '@vercel/og';
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import sharp from 'sharp';
 import { prisma } from '@/app/lib/prisma';
 import { renderCarSVG } from '@/app/lib/carRenderer';
 import { RARITY_LABELS, type CarTraits, type StatsSnapshot } from '@/app/lib/traits';
 
 export const runtime = 'nodejs';
+export const maxDuration = 30;
 
 export async function GET(
   _req: NextRequest,
@@ -12,93 +13,79 @@ export async function GET(
 ) {
   const { username } = await params;
   const car = await prisma.car.findUnique({ where: { githubUsername: username } });
-
   if (!car) {
-    return new ImageResponse(
-      (
-        <div
-          style={{
-            background: '#050508',
-            width: '100%',
-            height: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#f0f0f8',
-            fontSize: 48,
-          }}
-        >
-          Car not found
-        </div>
-      ),
-      { width: 1200, height: 630 }
-    );
+    return new NextResponse('Not found', { status: 404 });
   }
 
-  const traits = car.traits as unknown as CarTraits;
-  const stats = car.statsSnapshot as unknown as StatsSnapshot;
+  const png = await generateCarPng(car);
+  return new NextResponse(new Uint8Array(png), {
+    headers: {
+      'Content-Type': 'image/png',
+      'Cache-Control': 'public, max-age=31536000, immutable',
+    },
+  });
+}
+
+export async function generateCarPng(car: {
+  githubUsername: string;
+  traits: unknown;
+  statsSnapshot: unknown;
+}): Promise<Buffer> {
+  const traits = car.traits as CarTraits;
+  const stats = car.statsSnapshot as StatsSnapshot;
   const rarity = RARITY_LABELS[traits.rarity];
-  const svg = renderCarSVG(traits, { username: car.githubUsername, width: 900, height: 400 });
-  const svgDataUri = `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`;
+  const carSvg = renderCarSVG(traits, {
+    username: car.githubUsername,
+    width: 900,
+    height: 420,
+  });
 
-  return new ImageResponse(
-    (
-      <div
-        style={{
-          background: '#050508',
-          width: '100%',
-          height: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          padding: 60,
-          fontFamily: 'monospace',
-        }}
-      >
-        {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 30 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ width: 28, height: 28, background: '#F5A623', borderRadius: 6 }} />
-            <div style={{ color: '#f0f0f8', fontSize: 22, fontWeight: 600 }}>CommitCar</div>
-          </div>
-          <div
-            style={{
-              padding: '8px 20px',
-              background: `${rarity.color}20`,
-              border: `1px solid ${rarity.color}`,
-              borderRadius: 999,
-              color: rarity.color,
-              fontSize: 16,
-              fontWeight: 700,
-              letterSpacing: 3,
-              display: 'flex',
-            }}
-          >
-            {rarity.label.toUpperCase()}
-          </div>
-        </div>
+  // Build the full share card SVG at 1200x630
+  const shareSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+    <rect width="1200" height="630" fill="#050508"/>
+    <rect x="0" y="0" width="1200" height="6" fill="${rarity.color}" opacity="0.6"/>
 
-        {/* Car */}
-        <div style={{ display: 'flex', justifyContent: 'center', margin: '10px 0' }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={svgDataUri} alt="car" width={900} height={400} />
-        </div>
+    <!-- Header -->
+    <g transform="translate(60, 60)">
+      <rect x="0" y="0" width="32" height="32" rx="6" fill="#F5A623"/>
+      <text x="48" y="22" font-family="'Azeret Mono', monospace" font-size="22" font-weight="600" fill="#F0F0F8">CommitCar</text>
+    </g>
 
-        {/* Stats */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 30, color: '#8A8A9A', fontSize: 18 }}>
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <div style={{ color: '#F5A623', fontSize: 32, fontWeight: 700 }}>@{car.githubUsername}</div>
-            <div style={{ marginTop: 8 }}>
-              {stats.commits365d.toLocaleString()} commits · {stats.publicRepos} repos ·{' '}
-              {stats.topLanguage}
-            </div>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-            <div style={{ color: '#f0f0f8', fontSize: 20 }}>commitcar.vercel.app</div>
-            <div style={{ marginTop: 8, fontSize: 14 }}>built by @mojeebeth · blindspotlab</div>
-          </div>
-        </div>
-      </div>
-    ),
-    { width: 1200, height: 630 }
-  );
+    <!-- Rarity badge -->
+    <g transform="translate(960, 60)">
+      <rect x="0" y="0" width="180" height="40" rx="20" fill="${rarity.color}" opacity="0.18" stroke="${rarity.color}" stroke-width="1.5"/>
+      <text x="90" y="27" text-anchor="middle" font-family="'Barlow Condensed', sans-serif" font-size="16" font-weight="700" letter-spacing="3" fill="${rarity.color}">${rarity.label.toUpperCase()}</text>
+    </g>
+
+    <!-- Car (centered) -->
+    <g transform="translate(150, 130)">
+      ${carSvg.replace(/<\?xml[^?]*\?>/, '').replace(/<svg[^>]*>/, '<g>').replace(/<\/svg>/, '</g>')}
+    </g>
+
+    <!-- Username -->
+    <text x="60" y="560" font-family="'Azeret Mono', monospace" font-size="42" font-weight="700" fill="#F5A623">@${escapeXml(car.githubUsername)}</text>
+
+    <!-- Stats line -->
+    <text x="60" y="590" font-family="'Azeret Mono', monospace" font-size="18" fill="#8A8A9A">${stats.commits365d.toLocaleString()} commits · ${stats.publicRepos} repos · ${escapeXml(stats.topLanguage)}</text>
+
+    <!-- URL -->
+    <text x="1140" y="590" text-anchor="end" font-family="'Azeret Mono', monospace" font-size="16" fill="#4A4A5A">commitcar.vercel.app</text>
+  </svg>`;
+
+  return await sharp(Buffer.from(shareSvg))
+    .png({ compressionLevel: 9 })
+    .toBuffer();
+}
+
+function escapeXml(s: string): string {
+  return s.replace(/[<>&'"]/g, (c) => {
+    switch (c) {
+      case '<': return '&lt;';
+      case '>': return '&gt;';
+      case '&': return '&amp;';
+      case "'": return '&apos;';
+      case '"': return '&quot;';
+    }
+    return c;
+  });
 }

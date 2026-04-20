@@ -20,7 +20,7 @@ export async function GET(
   const metadata = {
     name: `CommitCar · @${car.githubUsername}`,
     description: `A ${rarity.label} CommitCar built from @${car.githubUsername}'s GitHub. ${stats.commits365d.toLocaleString()} commits in the last year. Built on commitcar.vercel.app.`,
-    image: `${base}/api/og/${car.githubUsername}`,
+    image: car.imageUrl || `${base}/api/og/${car.githubUsername}`,
     external_url: `${base}/commitcar/${car.githubUsername}`,
     attributes: [
       { trait_type: 'Rarity', value: rarity.label },

@@ -79,7 +79,7 @@ export default function HomePage() {
               <div className="terminal__input__prefix">github.com/</div>
               <input
                 type="text"
-                placeholder="mojeebeth"
+                placeholder="mojeebdev"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={onKey}

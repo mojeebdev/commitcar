@@ -27,6 +27,7 @@ model Car {
   tokenId        Int?      @unique
   mintTxHash     String?
   ownerAddress   String?
+  imageUrl       String?
 
   // Share + analytics
   shareCount     Int       @default(0)
