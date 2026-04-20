@@ -11,6 +11,10 @@ const nextConfig = {
     config.externals.push('pino-pretty', 'lokijs', 'encoding');
     return config;
   },
+  outputFileTracingIncludes: {
+    '/api/og/**': ['./public/fonts/**/*'],
+    '/api/finalize-mint': ['./public/fonts/**/*'],
+  },
 };
 
 module.exports = nextConfig;
