@@ -1,49 +1,15 @@
-import sharp from 'sharp';
-import fs from 'fs';
+import { Resvg } from '@resvg/resvg-js';
 import path from 'path';
 import { renderCarSVG } from './carRenderer';
 import { RARITY_LABELS, type CarTraits, type StatsSnapshot } from './traits';
 
-// Load and cache fonts at module init (happens once per serverless instance)
-let fontCss: string | null = null;
-
-function loadFonts(): string {
-  if (fontCss) return fontCss;
-
-  const fontsDir = path.join(process.cwd(), 'public', 'fonts');
-  const readAsBase64 = (filename: string): string => {
-    try {
-      const filePath = path.join(fontsDir, filename);
-      return fs.readFileSync(filePath).toString('base64');
-    } catch (e) {
-      console.error(`[imageGen] failed to load font ${filename}:`, e);
-      return '';
-    }
-  };
-
-  const azeretRegular = readAsBase64('AzeretMono-Regular.ttf');
-  const azeretBold = readAsBase64('AzeretMono-Bold.ttf');
-  const barlowBold = readAsBase64('BarlowCondensed-Bold.ttf');
-
-  fontCss = `
-    @font-face {
-      font-family: 'Azeret Mono';
-      font-weight: 400;
-      src: url(data:font/ttf;base64,${azeretRegular}) format('truetype');
-    }
-    @font-face {
-      font-family: 'Azeret Mono';
-      font-weight: 700;
-      src: url(data:font/ttf;base64,${azeretBold}) format('truetype');
-    }
-    @font-face {
-      font-family: 'Barlow Condensed';
-      font-weight: 700;
-      src: url(data:font/ttf;base64,${barlowBold}) format('truetype');
-    }
-  `;
-  return fontCss;
-}
+// Resolve font file paths once per serverless instance
+const FONTS_DIR = path.join(process.cwd(), 'public', 'fonts');
+const FONT_FILES = [
+  path.join(FONTS_DIR, 'AzeretMono-Regular.ttf'),
+  path.join(FONTS_DIR, 'AzeretMono-Bold.ttf'),
+  path.join(FONTS_DIR, 'BarlowCondensed-Bold.ttf'),
+];
 
 function escapeXml(s: string): string {
   return s.replace(/[<>&'"]/g, (c) => {
@@ -73,9 +39,6 @@ export async function generateCarPng(car: {
   });
 
   const shareSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
-    <defs>
-      <style>${loadFonts()}</style>
-    </defs>
     <rect width="1200" height="630" fill="#050508"/>
     <rect x="0" y="0" width="1200" height="6" fill="${rarity.color}" opacity="0.6"/>
 
@@ -85,7 +48,7 @@ export async function generateCarPng(car: {
     </g>
 
     <g transform="translate(960, 60)">
-      <rect x="0" y="0" width="180" height="40" rx="20" fill="${rarity.color}" opacity="0.18" stroke="${rarity.color}" stroke-width="1.5"/>
+      <rect x="0" y="0" width="180" height="40" rx="20" fill="${rarity.color}" fill-opacity="0.18" stroke="${rarity.color}" stroke-width="1.5"/>
       <text x="90" y="27" text-anchor="middle" font-family="Barlow Condensed" font-size="16" font-weight="700" letter-spacing="3" fill="${rarity.color}">${rarity.label.toUpperCase()}</text>
     </g>
 
@@ -98,7 +61,15 @@ export async function generateCarPng(car: {
     <text x="1140" y="590" text-anchor="end" font-family="Azeret Mono" font-size="16" font-weight="400" fill="#4A4A5A">commitcar.vercel.app</text>
   </svg>`;
 
-  return await sharp(Buffer.from(shareSvg), { density: 150 })
-    .png({ compressionLevel: 9 })
-    .toBuffer();
+  const resvg = new Resvg(shareSvg, {
+    font: {
+      fontFiles: FONT_FILES,
+      defaultFontFamily: 'Azeret Mono',
+      loadSystemFonts: false,
+    },
+    fitTo: { mode: 'width', value: 1200 },
+    background: '#050508',
+  });
+
+  return Buffer.from(resvg.render().asPng());
 }
