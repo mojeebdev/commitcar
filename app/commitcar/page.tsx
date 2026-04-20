@@ -3,6 +3,7 @@ import { prisma } from '@/app/lib/prisma';
 import { Navbar } from '@/app/components/nav/Navbar';
 import { renderCarSVG } from '@/app/lib/carRenderer';
 import { RARITY_LABELS, type CarTraits, type RarityTier } from '@/app/lib/traits';
+import { getTotalMinted } from '@/app/lib/contract';
 
 export const revalidate = 60;
 
@@ -16,14 +17,15 @@ export default async function HallPage({
   const { tier } = await searchParams;
   const where = tier && tier !== 'all' ? { rarityTier: tier } : {};
 
-  const cars = await prisma.car.findMany({
-    where,
-    orderBy: [{ rarityScore: 'desc' }, { createdAt: 'desc' }],
-    take: 120,
-  });
-
-  const totalCount = await prisma.car.count();
-  const mintedCount = await prisma.car.count({ where: { mintedAt: { not: null } } });
+  const [cars, totalCount, mintedCount] = await Promise.all([
+    prisma.car.findMany({
+      where,
+      orderBy: [{ rarityScore: 'desc' }, { createdAt: 'desc' }],
+      take: 120,
+    }),
+    prisma.car.count(),
+    getTotalMinted(),
+  ]);
 
   return (
     <div className="bg-void-grain">
@@ -34,7 +36,15 @@ export default async function HallPage({
           <h1 className="hall__title">Every car. Every shipper.</h1>
           <p className="hall__sub">
             A public garage of every CommitCar ever built. {totalCount.toLocaleString()} cars ·{' '}
-            {mintedCount.toLocaleString()} minted on Base.
+            <a
+              href="https://opensea.io/collection/commitcar"
+              target="_blank"
+              rel="noreferrer"
+              style={{ color: 'var(--accent)', textDecoration: 'underline', textDecorationColor: 'var(--accent-border)' }}
+            >
+              {mintedCount.toLocaleString()} minted on Base
+            </a>
+            .
           </p>
           <div className="hall__filters">
             {TIERS.map((t) => {
@@ -102,6 +112,7 @@ export default async function HallPage({
           <a href="https://twitter.com/mojeebeth" target="_blank" rel="noreferrer">@mojeebeth</a>
           <a href="https://mojeeb.xyz" target="_blank" rel="noreferrer">mojeeb.xyz</a>
           <a href="https://blindspotlab.xyz" target="_blank" rel="noreferrer">BlindspotLab</a>
+          <a href="https://opensea.io/collection/commitcar" target="_blank" rel="noreferrer">OpenSea</a>
         </div>
         <span className="footer-minimal__copy">Built with <span className="accent">love</span> by @mojeebeth</span>
       </footer>

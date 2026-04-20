@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Navbar } from './components/nav/Navbar';
 import { RARITY_LABELS, type CarTraits, type StatsSnapshot } from './lib/traits';
@@ -16,6 +16,15 @@ interface BuildResult {
   permalink: string;
   mintedAt: string | null;
   tokenId: number | null;
+}
+
+interface Stats {
+  totalBuilt: number;
+  totalMinted: number;
+  onChainMinted: number;
+  contract: string;
+  opensea: string;
+  basescan: string;
 }
 
 export default function HomePage() {
@@ -103,6 +112,7 @@ export default function HomePage() {
           </div>
         </div>
       </main>
+      <LiveStats />
       <Footer />
     </div>
   );
@@ -114,7 +124,6 @@ function CarPreview({ result }: { result: BuildResult }) {
 
   return (
     <div className="car-preview">
-      {/* Live SVG via OG as img keeps the markup simple for preview */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={ogUrl}
@@ -186,6 +195,62 @@ function getShareCaption(rarity: string, username: string): string {
   return `my commits built a CommitCar. early days, but the car is real.`;
 }
 
+function LiveStats() {
+  const [stats, setStats] = useState<Stats | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    async function fetchStats() {
+      try {
+        const res = await fetch('/api/stats');
+        const data = await res.json();
+        if (active) setStats(data);
+      } catch {}
+    }
+    fetchStats();
+    const interval = setInterval(fetchStats, 30_000);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, []);
+
+  if (!stats) return null;
+
+  return (
+    <section className="live-stats">
+      <div className="live-stats__inner">
+        
+          href={stats.opensea}
+          target="_blank"
+          rel="noreferrer"
+          className="live-stats__stat"
+          title="View collection on OpenSea"
+        >
+          <span className="live-stats__n">{stats.onChainMinted.toLocaleString()}</span>
+          <span className="live-stats__l">minted on Base</span>
+        </a>
+        <span className="live-stats__divider" />
+        <Link href="/commitcar" className="live-stats__stat">
+          <span className="live-stats__n">{stats.totalBuilt.toLocaleString()}</span>
+          <span className="live-stats__l">cars built</span>
+        </Link>
+        <span className="live-stats__divider" />
+        
+          href={stats.basescan}
+          target="_blank"
+          rel="noreferrer"
+          className="live-stats__stat"
+          title="View verified contract on Basescan"
+        >
+          <span className="live-stats__n live-stats__n--sm">View contract ↗</span>
+          <span className="live-stats__l">verified on Base</span>
+        </a>
+      </div>
+    </section>
+  );
+}
+
 function Footer() {
   return (
     <footer className="footer-minimal">
@@ -194,6 +259,7 @@ function Footer() {
         <a href="https://twitter.com/mojeebeth" target="_blank" rel="noreferrer">@mojeebeth</a>
         <a href="https://mojeeb.xyz" target="_blank" rel="noreferrer">mojeeb.xyz</a>
         <a href="https://blindspotlab.xyz" target="_blank" rel="noreferrer">BlindspotLab</a>
+        <a href="https://opensea.io/collection/commitcar" target="_blank" rel="noreferrer">OpenSea</a>
         <a href="https://github.com" target="_blank" rel="noreferrer">GitHub</a>
       </div>
       <span className="footer-minimal__copy">
