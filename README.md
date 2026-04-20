@@ -35,42 +35,6 @@ Every car has 7 visible traits derived from public GitHub data:
 
 ---
 
-## Local setup
-
-```bash
-pnpm install              # or npm / yarn
-cp .env.example .env      # fill in GITHUB_PAT and DATABASE_URL
-pnpm db:push              # push Prisma schema to Supabase
-pnpm dev                  # localhost:3000
-```
-
-### Required env vars
-
-- `GITHUB_PAT` — a server-side GitHub Personal Access Token (read-only, `public_repo` scope). Bumps rate limits from 60/hr → 5000/hr.
-- `DATABASE_URL` / `DIRECT_URL` — Supabase Postgres connection strings.
-- `NEXT_PUBLIC_COMMITCAR_CONTRACT` — address of the deployed `CommitCar.sol` on Base (leave as zero address pre-deploy; mint button auto-disables).
-- `NEXT_PUBLIC_APP_URL` — public URL for share links + token metadata.
-
----
-
-## Deploy
-
-```bash
-# 1. Push to GitHub
-git init && git add . && git commit -m "init: commitcar" && git push
-
-# 2. Vercel: import the repo, add env vars, deploy.
-#    No build config needed — `next build` runs `prisma generate` automatically.
-
-# 3. Deploy contract:
-#    - Copy contracts/CommitCar.sol into Remix (or Foundry/Hardhat)
-#    - Constructor arg: "https://commitcar.vercel.app/api/metadata/"
-#    - Deploy to Base Mainnet
-#    - Paste the address into NEXT_PUBLIC_COMMITCAR_CONTRACT on Vercel
-#    - Redeploy. Mint button activates automatically.
-```
-
----
 
 ## Routes
 
