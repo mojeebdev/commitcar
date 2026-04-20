@@ -1,6 +1,6 @@
 import { prisma } from '../app/lib/prisma';
 import { supabaseAdmin, STORAGE_BUCKET } from '../app/lib/supabase';
-import { generateCarPng } from '../app/api/og/[username]/route';
+import { generateCarPng } from '@/app/lib/imageGen';
 
 async function main() {
   const minted = await prisma.car.findMany({

@@ -3,7 +3,7 @@ import { createPublicClient, http, getAddress } from 'viem';
 import { base } from 'viem/chains';
 import { prisma } from '@/app/lib/prisma';
 import { supabaseAdmin, STORAGE_BUCKET } from '@/app/lib/supabase';
-import { generateCarPng } from '@/app/api/og/[username]/route';
+import { generateCarPng } from '@/app/lib/imageGen';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
